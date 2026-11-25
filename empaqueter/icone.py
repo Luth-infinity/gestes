@@ -33,8 +33,8 @@ if __name__ == "__main__":
         img_mac.save(ICI / "gestes.icns")
     except Exception as e:
         print("icns non créé :", e)
-    site = ICI.parent / "site" / "img"
+    site = ICI.parent / "site" / "public"
     site.mkdir(parents=True, exist_ok=True)
-    grande(taille=512).save(site / "icone.png")
+    grande(taille=512).save(site / "icon.png")
     grande(taille=64).save(site / "favicon.png")
     print("icône OK")

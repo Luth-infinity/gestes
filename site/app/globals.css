@@ -1,0 +1,109 @@
+@import 'tailwindcss';
+
+/**
+ * Même grammaire que les autres apps Luth : une colonne étroite, des titres
+ * très serrés, des cartes qui se détachent, sur le fond sombre de l'icône.
+ *
+ * Deux couleurs en dehors des gris, celles de la pastille de l'app : le vert
+ * d'un geste reconnu, le bleu des gestes armés. Elles ne servent qu'à ça.
+ */
+@theme {
+  --font-sans: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --color-page: #0b0c0e;
+  --color-canvas: #121316;
+  --color-card: #17191d;
+  --color-ink: #f6f7f8;
+  --color-ink-soft: #8e959d;
+  --color-line: #24272c;
+  --color-geste: #34c78c;
+  --color-arme: #8b9cff;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background: var(--color-page);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  ::selection {
+    background: var(--color-ink);
+    color: var(--color-page);
+  }
+}
+
+@utility headline {
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+}
+
+.degrade {
+  background: linear-gradient(100deg, var(--color-geste), #3cc6d6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Lueur derrière le hero : le vert du geste, le bleu de l'armement. */
+.halo-hero {
+  background:
+    radial-gradient(560px 360px at 78% 35%, color-mix(in oklab, var(--color-geste) 14%, transparent), transparent 70%),
+    radial-gradient(480px 320px at 15% 10%, color-mix(in oklab, var(--color-arme) 12%, transparent), transparent 70%);
+}
+
+/* Quadrillage de la scène, effacé vers les bords. */
+.grille {
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(36, 39, 44, 0.9) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36, 39, 44, 0.9) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at 50% 50%, #000 30%, transparent 75%);
+}
+
+@keyframes clignote {
+  50% {
+    opacity: 0.25;
+  }
+}
+.clignote {
+  animation: clignote 1.6s infinite;
+}
+
+/* Les sections se révèlent au défilement, sans jamais rester invisibles si
+   l'observateur ne se déclenche pas : l'état par défaut est déjà lisible. */
+@utility reveal {
+  opacity: 1;
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .js .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  .js .reveal[data-visible='true'] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clignote {
+    animation: none;
+  }
+}
+
+/* Le script du <head> pose `data-os` avant le rendu : on ne montre que le bon
+   binaire. Plateforme inconnue (ou JS coupé) : rien n'est masqué. */
+html[data-os='mac'] [data-cta='win'],
+html[data-os='win'] [data-cta='mac'] {
+  display: none;
+}
