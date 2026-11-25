@@ -1,0 +1,8 @@
+* text=auto
+*.bat eol=crlf
+*.yml eol=lf
+*.sh eol=lf
+*.task binary
+*.ico binary
+*.icns binary
+*.png binary

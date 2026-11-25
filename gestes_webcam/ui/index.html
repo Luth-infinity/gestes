@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Gestes</title>
+<script src="lucide.min.js"></script>
+<style>
+/* Palette reprise de Clavier custom / Hublink : neutres oklch + famille « shell » (teinte 265). */
+:root {
+  --radius: 0.625rem;
+  --background: 1 0 0; --foreground: 0.145 0 0;
+  --primary: 0.205 0 0; --primary-foreground: 0.985 0 0;
+  --muted: 0.97 0 0; --muted-foreground: 0.556 0 0;
+  --destructive: 0.577 0.245 27.325; --positive: 0.596 0.145 163; --warning: 0.62 0.15 65;
+  --input: 0.922 0 0; --ring: 0.708 0 0;
+  --shell: 0.991 0.001 265; --shell-raised: 1 0 0; --shell-border: 0.935 0.003 265;
+  --shell-foreground: 0.26 0.012 265; --shell-muted: 0.53 0.014 265;
+  --tile: 0.26 0.012 265;
+}
+.dark {
+  --background: 0.145 0 0; --foreground: 0.985 0 0;
+  --primary: 0.922 0 0; --primary-foreground: 0.205 0 0;
+  --muted: 0.269 0 0; --muted-foreground: 0.708 0 0;
+  --destructive: 0.66 0.215 24; --positive: 0.72 0.16 163; --warning: 0.78 0.14 75;
+  --input: 0.35 0.006 265; --ring: 0.556 0 0;
+  --shell: 0.185 0.004 265; --shell-raised: 0.23 0.005 265; --shell-border: 0.32 0.008 265;
+  --shell-foreground: 0.95 0.004 265; --shell-muted: 0.74 0.008 265;
+  --tile: 0.32 0.008 265;
+}
+:root, .dark { --line: oklch(var(--shell-border)); }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', Inter, system-ui, sans-serif;
+  font-size: 13px; -webkit-font-smoothing: antialiased; user-select: none;
+  background: oklch(var(--shell)); color: oklch(var(--shell-foreground));
+}
+svg.lucide { width: 16px; height: 16px; stroke-width: 1.75; flex: none; }
+input, select, button { font: inherit; }
+input[type=text] { user-select: text; }
+
+.window { height: 100vh; display: grid; grid-template-rows: 40px 1fr; border: 1px solid var(--line); }
+.titlebar { display: flex; align-items: center; gap: 10px; padding: 0 6px 0 14px; border-bottom: 1px solid var(--line); }
+.logo { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; background: oklch(var(--tile)); color: white; }
+.logo svg.lucide { width: 13px; height: 13px; }
+.titlebar .name { font-weight: 600; }
+.titlebar .spacer { flex: 1; align-self: stretch; }
+.winbtn { width: 38px; height: 28px; display: grid; place-items: center; border-radius: 6px; border: 0; background: none;
+  color: oklch(var(--shell-muted)); }
+.winbtn:hover { background: oklch(var(--muted)); color: oklch(var(--shell-foreground)); }
+.winbtn.close:hover { background: oklch(var(--destructive)); color: white; }
+
+.body { display: grid; grid-template-columns: 220px 1fr; min-height: 0; }
+.side { border-right: 1px solid var(--line); padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
+.nav { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: calc(var(--radius) - 2px);
+  color: oklch(var(--shell-muted)); cursor: pointer; font-weight: 500; transition: background .15s, color .15s; }
+.nav:hover { background: oklch(var(--muted)); color: oklch(var(--shell-foreground)); }
+.nav.on { background: oklch(var(--shell-raised)); color: oklch(var(--shell-foreground));
+  box-shadow: 0 0 0 1px var(--line), 0 1px 2px oklch(0 0 0 / .05); }
+.nav .count { margin-left: auto; font-size: 11px; color: oklch(var(--shell-muted)); }
+.side .grow { flex: 1; }
+.master { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; background: oklch(var(--shell-raised)); display: grid; gap: 10px; }
+.master .row { display: flex; align-items: center; gap: 10px; }
+.master .row.s { gap: 4px; white-space: nowrap; }
+.master .t { font-weight: 600; }
+.master .s { font-size: 11px; color: oklch(var(--shell-muted)); }
+.kbd { font: 500 11px/1 'Segoe UI Variable Text', 'Segoe UI', system-ui; padding: 3px 6px; border-radius: 5px;
+  border: 1px solid var(--line); border-bottom-width: 2px; background: oklch(var(--shell)); color: oklch(var(--shell-foreground)); }
+
+.main { overflow: auto; padding: 22px 28px 28px; }
+.page { display: none; animation: fade-up .25s ease both; }
+.page.on { display: block; }
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+h1 { font-size: 15px; font-weight: 600; }
+.sub { color: oklch(var(--shell-muted)); margin-top: 2px; }
+.head { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 18px; }
+.head .spacer { flex: 1; }
+.label { font-size: 11px; font-weight: 600; letter-spacing: .02em; color: oklch(var(--shell-muted)); margin: 20px 2px 8px; }
+.dim { color: oklch(var(--shell-muted)); }
+
+.card { background: oklch(var(--shell-raised)); border: 1px solid var(--line); border-radius: var(--radius); }
+.rows > .r { display: flex; align-items: center; gap: 12px; padding: 12px 14px; min-height: 52px; }
+.rows > .r + .r { border-top: 1px solid var(--line); }
+.r .txt { flex: 1; min-width: 0; }
+.r .t { font-weight: 500; }
+.r .s { font-size: 12px; color: oklch(var(--shell-muted)); margin-top: 1px; }
+
+.sw { position: relative; width: 34px; height: 20px; flex: none; border-radius: 10px; cursor: pointer;
+  background: oklch(var(--shell-muted) / .35); transition: background .2s; }
+.sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: white; box-shadow: 0 1px 3px oklch(0 0 0 / .3); transition: transform .3s cubic-bezier(.34,1.56,.64,1); }
+.sw.on { background: oklch(var(--positive)); }
+.sw.on::after { transform: translateX(14px); }
+.sw.big { width: 44px; height: 26px; border-radius: 13px; }
+.sw.big::after { width: 22px; height: 22px; }
+.sw.big.on::after { transform: translateX(18px); }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: calc(var(--radius) - 2px);
+  border: 1px solid var(--line); background: oklch(var(--shell-raised)); color: oklch(var(--shell-foreground)); font-weight: 500; cursor: pointer; white-space: nowrap; }
+.btn:hover { background: oklch(var(--muted)); }
+.btn.ghost { border-color: transparent; background: none; color: oklch(var(--shell-muted)); }
+.btn.ghost:hover { color: oklch(var(--shell-foreground)); background: oklch(var(--muted)); }
+.btn.danger:hover { color: oklch(var(--destructive)); }
+.btn:disabled { opacity: .5; cursor: default; }
+.select, .input { height: 30px; padding: 0 10px; border-radius: calc(var(--radius) - 2px); border: 1px solid oklch(var(--input));
+  background: oklch(var(--shell)); color: oklch(var(--shell-foreground)); min-width: 190px; }
+.select { padding-right: 28px; appearance: none; cursor: pointer;
+  background: oklch(var(--shell)) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23888' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 9px center; }
+.select option { background: oklch(var(--shell-raised)); color: oklch(var(--shell-foreground)); }
+.select:focus, .input:focus, .btn:focus-visible, .capture:focus { outline: 2px solid oklch(var(--ring)); outline-offset: 2px; }
+input[type=range] { width: 180px; accent-color: oklch(var(--positive)); }
+.val { width: 48px; text-align: right; font-variant-numeric: tabular-nums; color: oklch(var(--shell-muted)); font-size: 12px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 99px; font-size: 11px; font-weight: 600;
+  background: oklch(var(--muted)); color: oklch(var(--shell-muted)); white-space: nowrap; }
+.pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill.live { background: oklch(var(--positive) / .14); color: oklch(var(--positive)); }
+.pill.live .dot { animation: pulse 1.6s ease-in-out infinite; }
+.pill.err { background: oklch(var(--destructive) / .12); color: oklch(var(--destructive)); }
+.pill.warn { background: oklch(var(--warning) / .16); color: oklch(var(--warning)); }
+@keyframes pulse { 50% { opacity: .35; } }
+
+.hero { display: grid; grid-template-columns: 1fr 280px; gap: 14px; }
+.hero > .card { padding: 16px; }
+.state { display: flex; align-items: center; gap: 14px; }
+.state .big { font-size: 15px; font-weight: 600; }
+.tile { width: 40px; height: 40px; border-radius: calc(var(--radius) - 1px); display: grid; place-items: center; background: oklch(var(--tile)); color: white; flex: none; transition: background .3s; }
+.tile svg.lucide { width: 19px; height: 19px; }
+.tile.live { background: oklch(var(--positive)); }
+.tile.sm { width: 28px; height: 28px; }
+.tile.sm svg.lucide { width: 15px; height: 15px; }
+.cam { position: relative; aspect-ratio: 16/10; border-radius: var(--radius); overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 30%, oklch(0.32 0.01 265), oklch(0.16 0.006 265)); }
+.cam svg.hand { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cam .tag { position: absolute; left: 10px; bottom: 10px; background: oklch(0 0 0 / .45); color: white; }
+.cam .rec { position: absolute; right: 10px; top: 10px; }
+.cam .msg { position: absolute; inset: 0; display: grid; place-items: center; color: oklch(0.74 0.008 265); text-align: center; padding: 20px; }
+.meter { height: 4px; border-radius: 4px; background: oklch(var(--muted)); overflow: hidden; margin-top: 14px; }
+.meter i { display: block; height: 100%; width: 0; background: oklch(var(--positive)); transition: width .1s linear; }
+
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.g { padding: 14px; display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: start; transition: opacity .2s; }
+.g.off { opacity: .55; }
+.g .t { font-weight: 600; }
+.g .s { font-size: 12px; color: oklch(var(--shell-muted)); margin: 2px 0 10px; line-height: 1.35; }
+.g .select { min-width: 0; width: 100%; }
+.param { margin-top: 8px; }
+.capture { height: 30px; border: 1px dashed oklch(var(--input)); border-radius: calc(var(--radius) - 2px);
+  display: flex; align-items: center; justify-content: center; gap: 4px; color: oklch(var(--shell-muted)); font-size: 12px; cursor: text; }
+.capture.listening { border-color: oklch(var(--positive)); color: oklch(var(--positive)); }
+.file { display: flex; gap: 8px; align-items: center; }
+.file span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: oklch(var(--shell-muted)); }
+.warn { display: none; align-items: center; gap: 8px; padding: 10px 12px; border-radius: var(--radius); margin-bottom: 12px;
+  background: oklch(var(--destructive) / .1); color: oklch(var(--destructive)); font-weight: 500; }
+.warn.show { display: flex; }
+.info { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 12px; }
+
+.profiles { display: grid; grid-template-columns: 230px 1fr; gap: 14px; align-items: start; }
+.plist { padding: 6px; display: grid; gap: 2px; }
+.p { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: calc(var(--radius) - 2px); cursor: pointer; }
+.p:hover, .p.on { background: oklch(var(--muted)); }
+.p .s { font-size: 11px; color: oklch(var(--shell-muted)); }
+.p .now { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: oklch(var(--positive)); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 6px 0 10px; border: 1px solid var(--line); border-radius: 99px; font-size: 12px; background: oklch(var(--shell)); }
+.chip button { border: 0; background: none; color: oklch(var(--shell-muted)); display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; }
+.chip button:hover { background: oklch(var(--muted)); color: oklch(var(--shell-foreground)); }
+.chip svg.lucide { width: 13px; height: 13px; }
+.pname { font-size: 15px; font-weight: 600; border: 1px solid transparent; background: none; color: inherit; padding: 2px 6px; margin-left: -7px; border-radius: 6px; min-width: 0; width: 100%; }
+.pname:hover { border-color: var(--line); }
+.pname:focus { outline: none; border-color: oklch(var(--ring)); background: oklch(var(--shell)); }
+
+.toastz { display: none; }
+</style>
+</head>
+<body>
+
+<div class="window">
+  <div class="titlebar">
+    <div class="logo pywebview-drag-region"><i data-lucide="hand"></i></div>
+    <span class="name pywebview-drag-region">Gestes</span>
+    <span class="pill" id="statusPill"><span class="dot"></span><span id="statusTxt">…</span></span>
+    <span class="pill warn" id="essaiPill" style="display:none" title="Lancée avec --essai : les gestes sont reconnus mais aucune action n'est envoyée au PC. Relance avec lancer.bat sans --essai."><span class="dot"></span>Mode essai · aucune action</span>
+    <span class="spacer pywebview-drag-region"></span>
+    <button class="winbtn" id="themeBtn" title="Thème clair / sombre"></button>
+    <button class="winbtn" id="minBtn" title="Réduire"><i data-lucide="minus"></i></button>
+    <button class="winbtn close" id="closeBtn" title="Fermer (l'app reste dans la zone de notification)"><i data-lucide="x"></i></button>
+  </div>
+
+  <div class="body">
+    <aside class="side">
+      <div class="nav on" data-page="general"><i data-lucide="layout-dashboard"></i>Général</div>
+      <div class="nav" data-page="gestes"><i data-lucide="hand"></i>Gestes<span class="count" id="navCount"></span></div>
+      <div class="nav" data-page="profils"><i data-lucide="layers"></i>Profils<span class="count" id="navProfils"></span></div>
+      <div class="nav" data-page="calibrage"><i data-lucide="scan-line"></i>Calibrage</div>
+      <div class="nav" data-page="confort"><i data-lucide="sliders-horizontal"></i>Confort</div>
+      <div class="grow"></div>
+      <div class="master">
+        <div class="row">
+          <div style="flex:1">
+            <div class="t" id="masterT">Écoute</div>
+            <div class="s" id="masterS"></div>
+          </div>
+          <div class="sw big" id="master"></div>
+        </div>
+        <div class="row s"><span class="kbd">Ctrl</span><span class="kbd">Alt</span><span class="kbd">G</span><span style="margin-left:4px">pour basculer</span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <section class="page on" id="general">
+        <div class="head"><div><h1>Général</h1><div class="sub">L'état de l'écoute et les réglages de base.</div></div></div>
+        <div class="hero">
+          <div class="card">
+            <div class="state">
+              <div class="tile" id="heroTile"><i data-lucide="hand"></i></div>
+              <div style="flex:1"><div class="big" id="heroT">…</div><div class="sub" id="heroS"></div></div>
+            </div>
+            <div class="meter"><i id="meter"></i></div>
+            <div class="label">Derniers gestes</div>
+            <div class="rows" id="history"></div>
+          </div>
+          <div class="cam" id="cam">
+            <svg class="hand" id="skeleton" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"></svg>
+            <div class="msg" id="camMsg"></div>
+            <span class="pill live rec" id="camRec" style="display:none"><span class="dot"></span><span id="ips">Caméra</span></span>
+            <span class="pill tag" id="camTag" style="display:none"></span>
+          </div>
+        </div>
+
+        <div class="label">Réglages de base</div>
+        <div class="card rows">
+          <div class="r"><div class="txt"><div class="t">Caméra</div><div class="s">Celle qui voit ta main de face.</div></div>
+            <select class="select" id="camera"></select></div>
+          <div class="r"><div class="txt"><div class="t">Démarrer avec Windows</div><div class="s">L'app se lance en arrière-plan dans la zone de notification.</div></div><div class="sw" data-key="demarrage_windows"></div></div>
+          <div class="r"><div class="txt"><div class="t">Témoin à l'écran</div><div class="s">Une pastille discrète confirme chaque geste reconnu.</div></div><div class="sw" data-key="temoin"></div></div>
+          <div class="r"><div class="txt"><div class="t">Raccourci pour activer ou couper</div><div class="s">Fonctionne partout, même fenêtre fermée.</div></div>
+            <span class="kbd">Ctrl</span><span class="kbd">Alt</span><span class="kbd">G</span></div>
+        </div>
+      </section>
+
+      <section class="page" id="gestes">
+        <div class="head">
+          <div><h1>Gestes</h1><div class="sub">Active les gestes et choisis ce que fait chacun. Les profils peuvent changer ces actions selon l'application.</div></div>
+          <span class="spacer"></span><span class="pill" id="activeCount"></span>
+        </div>
+        <div class="card info">
+          <div class="tile"><i data-lucide="hand"></i></div>
+          <div class="txt" style="flex:1"><div style="font-weight:600">Main ouverte, tenue une seconde</div>
+            <div class="dim" style="font-size:12px">Arme les gestes. Toujours actif : c'est ce qui évite les déclenchements par accident.</div></div>
+        </div>
+        <div class="warn" id="warn"><i data-lucide="triangle-alert"></i>Plus de 6 gestes actifs : la reconnaissance devient moins fiable.</div>
+        <div class="grid" id="gestureGrid"></div>
+      </section>
+
+      <section class="page" id="profils">
+        <div class="head"><div><h1>Profils</h1><div class="sub">Les gestes changent d'action selon l'application au premier plan.</div></div>
+          <span class="spacer"></span><button class="btn" id="newProfile"><i data-lucide="plus"></i>Nouveau profil</button></div>
+        <div class="profiles">
+          <div class="card plist" id="plist"></div>
+          <div class="card" style="padding:16px" id="pdetail"></div>
+        </div>
+      </section>
+
+      <section class="page" id="calibrage">
+        <div class="head"><div><h1>Calibrage</h1><div class="sub">Régler la reconnaissance sur ta main.</div></div></div>
+        <div class="card info">
+          <div class="tile"><i data-lucide="scan-line"></i></div>
+          <div class="txt" style="flex:1"><div style="font-weight:600">Bientôt disponible</div>
+            <div class="dim" style="font-size:12px">L'assistant enregistrera chaque geste une fois et ajustera les seuils. En attendant, les réglages de la page Confort suffisent dans la plupart des cas.</div></div>
+        </div>
+      </section>
+
+      <section class="page" id="confort">
+        <div class="head"><div><h1>Confort</h1><div class="sub">Sensibilité, délais et fatigue du bras.</div></div></div>
+        <div class="card rows">
+          <div class="r"><div class="txt"><div class="t">Temps de maintien</div><div class="s">Combien de temps tenir un geste avant qu'il déclenche.</div></div>
+            <input type="range" min="3" max="12" data-c="maintien" data-k="10"><span class="val" data-v="maintien"></span></div>
+          <div class="r"><div class="txt"><div class="t">Mise en veille automatique</div><div class="s">Sans geste pendant ce délai, les gestes se désarment.</div></div>
+            <input type="range" min="2" max="20" data-c="veille" data-k="1"><span class="val" data-v="veille"></span></div>
+          <div class="r"><div class="txt"><div class="t">Amplitude du balayage</div><div class="s">Plus c'est court, plus c'est sensible.</div></div>
+            <input type="range" min="8" max="30" data-c="balayage" data-k="100"><span class="val" data-v="balayage"></span></div>
+          <div class="r"><div class="txt"><div class="t">Lissage du curseur</div><div class="s">Moins de tremblements, un peu plus de retard.</div></div>
+            <input type="range" min="0" max="95" data-c="lissage" data-k="100"><span class="val" data-v="lissage"></span></div>
+          <div class="r"><div class="txt"><div class="t">Main gauche</div><div class="s">Inverse le sens des balayages et du sélecteur.</div></div><div class="sw" data-confort="gaucher"></div></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script>
+const LIAISONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const icons = () => window.lucide && lucide.createIcons();
+const fmt = n => n.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+
+let api, R, CAT, CAMS = [], ETAT = {}, pSel = 0, saveT, MAC = false;
+const PRES_HORLOGE = () => MAC ? "dans la barre des menus" : "près de l'horloge";
+const RACCOURCI = () => MAC ? "Ctrl + Option + G" : "Ctrl + Alt + G";
+
+/* Sur Mac : mêmes écrans, vocabulaire du Mac. */
+function adapterMac() {
+  const remplacer = [["Démarrer avec Windows", "Ouvrir à la connexion"],
+    ["dans la zone de notification", "dans la barre des menus"], ["près de l'horloge", "dans la barre des menus"],
+    ["Ctrl + Alt + G", "Ctrl + Option + G"]];
+  const it = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n; (n = it.nextNode());) {
+    let t = n.nodeValue;
+    for (const [a, b] of remplacer) t = t.split(a).join(b);
+    if (t !== n.nodeValue) n.nodeValue = t;
+  }
+  document.querySelectorAll(".kbd").forEach(k => { if (k.textContent === "Alt") k.textContent = "Option"; });
+}
+
+/* ---------- démarrage ---------- */
+window.addEventListener("pywebviewready", async () => {
+  api = window.pywebview.api;
+  const d = await api.donnees();
+  R = d.reglages; CAT = d.catalogue; CAMS = d.cameras; MAC = d.plateforme === "mac";
+  renderTout();
+  if (MAC) adapterMac();
+  setInterval(sonder, 100);
+});
+
+function enregistrer() {
+  clearTimeout(saveT);
+  saveT = setTimeout(() => api.enregistrer(R), 250);
+}
+
+/* ---------- navigation, thème, fenêtre ---------- */
+$$(".nav").forEach(n => n.onclick = () => {
+  $$(".nav").forEach(x => x.classList.toggle("on", x === n));
+  $$(".page").forEach(p => p.classList.toggle("on", p.id === n.dataset.page));
+  $(".main").scrollTop = 0;
+});
+const sombre = matchMedia("(prefers-color-scheme: dark)");
+function setTheme(d) {
+  document.documentElement.classList.toggle("dark", d);
+  $("#themeBtn").innerHTML = `<i data-lucide="${d ? "sun" : "moon"}"></i>`; icons();
+}
+setTheme(sombre.matches);
+sombre.onchange = e => setTheme(e.matches);
+$("#themeBtn").onclick = () => setTheme(!document.documentElement.classList.contains("dark"));
+$("#minBtn").onclick = () => api.reduire();
+$("#closeBtn").onclick = () => api.fermer();
+
+/* ---------- rendu ---------- */
+function renderTout() {
+  renderGeneral(); renderGestes(); renderProfils(); renderConfort(); icons();
+}
+
+function renderGeneral() {
+  const cams = CAMS.length ? CAMS : [{ index: R.camera, nom: "Caméra " + (R.camera + 1) }];
+  $("#camera").innerHTML = cams.map(c => `<option value="${c.index}" ${c.index === R.camera ? "selected" : ""}>${esc(c.nom)}</option>`).join("");
+  $$(".sw[data-key]").forEach(sw => sw.classList.toggle("on", !!R[sw.dataset.key]));
+}
+$("#camera").onchange = e => { R.camera = +e.target.value; enregistrer(); };
+$$(".sw[data-key]").forEach(sw => sw.onclick = () => { R[sw.dataset.key] = !R[sw.dataset.key]; sw.classList.toggle("on"); enregistrer(); });
+
+$("#master").onclick = async () => {
+  R.ecoute = !R.ecoute;
+  $("#master").classList.toggle("on", R.ecoute);
+  await api.basculer(R.ecoute);
+};
+
+/* Gestes */
+function optionsPour(type, choisi) {
+  return Object.entries(CAT.actions).filter(([, a]) => a.type === type || a.type === "*")
+    .map(([id, a]) => `<option value="${id}" ${id === choisi ? "selected" : ""}>${esc(a.libelle)}</option>`).join("");
+}
+function paramHtml(c) {
+  if (c.action === "raccourci")
+    return `<div class="param"><div class="capture" tabindex="0">${c.param?.length ? c.param.map(k => `<span class="kbd">${esc(k)}</span>`).join("") : "Clique puis tape ton raccourci"}</div></div>`;
+  if (c.action === "lancer")
+    return `<div class="param file"><span title="${esc(c.param)}">${c.param ? esc(c.param.split(/[\\/]/).pop()) : "Aucune application choisie"}</span><button class="btn" data-pick>Choisir…</button></div>`;
+  return "";
+}
+function renderGestes() {
+  $("#gestureGrid").innerHTML = CAT.gestes.map(g => {
+    const c = R.gestes[g.id];
+    return `<div class="card g ${c.actif ? "" : "off"}" data-id="${g.id}">
+      <div class="tile"><i data-lucide="${g.icone}"></i></div>
+      <div><div class="t">${esc(g.nom)}</div><div class="s">${esc(g.desc)}</div>
+        <select class="select">${optionsPour(g.type, c.action)}</select>${paramHtml(c)}</div>
+      <div class="sw ${c.actif ? "on" : ""}"></div></div>`;
+  }).join("");
+  icons(); compter();
+}
+function compter() {
+  const n = Object.values(R.gestes).filter(g => g.actif).length;
+  $("#activeCount").textContent = `${n} actif${n > 1 ? "s" : ""}`;
+  $("#navCount").textContent = n;
+  $("#warn").classList.toggle("show", n > 6);
+}
+/* Raccourci personnalisé et application : partagé entre Gestes et Profils */
+function brancherParams(conteneur, cible) {
+  conteneur.addEventListener("focusin", e => {
+    if (e.target.classList.contains("capture")) { e.target.classList.add("listening"); e.target.textContent = "J'écoute…"; }
+  });
+  conteneur.addEventListener("focusout", e => {
+    if (e.target.classList.contains("capture")) { e.target.classList.remove("listening"); const c = cible(e.target);
+      e.target.innerHTML = c.param?.length ? c.param.map(k => `<span class="kbd">${esc(k)}</span>`).join("") : "Clique puis tape ton raccourci"; }
+  });
+  conteneur.addEventListener("keydown", e => {
+    const cap = e.target.closest(".capture"); if (!cap) return;
+    e.preventDefault();
+    if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return;
+    const nomTouche = e.key === " " ? "Espace" : e.key.length === 1 ? e.key.toUpperCase() : e.key;
+    const touches = [e.ctrlKey && "Ctrl", e.altKey && "Alt", e.shiftKey && "Maj", e.metaKey && (MAC ? "Cmd" : "Win"), nomTouche].filter(Boolean);
+    cible(cap).param = touches; enregistrer(); cap.blur();
+  });
+  conteneur.addEventListener("click", async e => {
+    const b = e.target.closest("[data-pick]"); if (!b) return;
+    const chemin = await api.choisir_application();
+    if (chemin) { const c = cible(b); c.param = chemin; enregistrer(); b.previousElementSibling.textContent = chemin.split(/[\\/]/).pop(); }
+  });
+}
+const choixCarte = el => R.gestes[el.closest(".g").dataset.id];
+brancherParams($("#gestureGrid"), choixCarte);
+$("#gestureGrid").addEventListener("click", e => {
+  const sw = e.target.closest(".sw"); if (!sw) return;
+  const c = choixCarte(sw); c.actif = !c.actif;
+  sw.classList.toggle("on", c.actif); sw.closest(".g").classList.toggle("off", !c.actif); compter(); enregistrer();
+});
+$("#gestureGrid").addEventListener("change", e => {
+  if (!e.target.matches("select")) return;
+  const c = choixCarte(e.target); c.action = e.target.value; c.param = null; enregistrer(); renderGestes();
+});
+
+/* Profils */
+const gesteParId = id => CAT.gestes.find(g => g.id === id);
+function renderProfils() {
+  if (pSel >= R.profils.length) pSel = 0;
+  $("#navProfils").textContent = R.profils.length;
+  $("#plist").innerHTML = R.profils.map((p, i) => `<div class="p ${i === pSel ? "on" : ""}" data-i="${i}">
+      <div class="tile sm"><i data-lucide="${p.icone || "app-window"}"></i></div>
+      <div style="min-width:0"><div style="font-weight:500">${esc(p.nom)}</div>
+      <div class="s">${p.defaut ? "Par défaut" : !p.actif ? "Désactivé" : (p.apps.length + p.titres.length) + " règle" + (p.apps.length + p.titres.length > 1 ? "s" : "")}</div></div>
+      ${ETAT.profil === p.nom && ETAT.camera ? '<span class="now" title="Profil en cours"></span>' : ""}</div>`).join("");
+  const p = R.profils[pSel];
+  const libres = CAT.gestes.filter(g => !(g.id in p.actions));
+  $("#pdetail").innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px">
+      ${p.defaut ? `<h1 style="flex:1">${esc(p.nom)}</h1><span class="pill">Par défaut</span>`
+        : `<input class="pname" id="pname" value="${esc(p.nom)}"><button class="btn ghost danger" id="pdel" title="Supprimer le profil"><i data-lucide="trash-2"></i></button><div class="sw ${p.actif ? "on" : ""}" id="pon"></div>`}
+    </div>
+    ${p.defaut ? '<div class="sub" style="margin-top:8px">Utilisé pour toutes les applications sans profil. Ses actions sont celles de la page Gestes.</div>' : `
+    <div class="label" style="margin-top:14px">S'active avec</div>
+    <div class="chips">
+      ${p.apps.map((a, i) => `<span class="chip"><i data-lucide="app-window"></i>${esc(a)}<button data-del-app="${i}" title="Retirer"><i data-lucide="x"></i></button></span>`).join("")}
+      ${p.titres.map((t, i) => `<span class="chip"><i data-lucide="type"></i>Titre contient « ${esc(t)} »<button data-del-titre="${i}" title="Retirer"><i data-lucide="x"></i></button></span>`).join("")}
+      <button class="btn ghost" id="addApp"><i data-lucide="plus"></i>Application</button>
+      <button class="btn ghost" id="addTitre"><i data-lucide="plus"></i>Titre de fenêtre</button>
+    </div>
+    <div class="label">Ce qui change</div>
+    ${Object.keys(p.actions).length ? `<div class="card rows" style="background:oklch(var(--shell))">${Object.entries(p.actions).map(([gid, c]) => {
+      const g = gesteParId(gid); if (!g) return "";
+      return `<div class="r" data-gid="${gid}"><div class="tile sm"><i data-lucide="${g.icone}"></i></div><div class="txt"><div class="t">${esc(g.nom)}</div></div>
+        <select class="select">${optionsPour(g.type, c.action)}</select>
+        <button class="btn ghost" data-del-g="${gid}" title="Retirer"><i data-lucide="x"></i></button>${paramHtml(c) ? `</div><div class="r" data-gid="${gid}" style="min-height:0;padding-top:0;border-top:0"><div style="flex:1;padding-left:40px">${paramHtml(c)}</div>` : ""}</div>`;
+    }).join("")}</div>` : '<div class="sub">Aucun changement : les actions de la page Gestes s\'appliquent.</div>'}
+    ${libres.length ? `<div style="margin-top:10px"><select class="select" id="addG"><option value="">+ Changer un autre geste…</option>${libres.map(g => `<option value="${g.id}">${esc(g.nom)}</option>`).join("")}</select></div>` : ""}`}`;
+  icons();
+}
+$("#plist").addEventListener("click", e => { const p = e.target.closest(".p"); if (p) { pSel = +p.dataset.i; renderProfils(); } });
+const pdetail = $("#pdetail");
+brancherParams(pdetail, el => R.profils[pSel].actions[el.closest("[data-gid]").dataset.gid]);
+pdetail.addEventListener("input", e => { if (e.target.id === "pname") { R.profils[pSel].nom = e.target.value || "Sans nom"; enregistrer();
+  $(`.p[data-i="${pSel}"] div[style] > div`).textContent = R.profils[pSel].nom; } });
+pdetail.addEventListener("change", e => {
+  const p = R.profils[pSel];
+  if (e.target.id === "addG") { const g = gesteParId(e.target.value); if (g) p.actions[g.id] = { action: R.gestes[g.id].action, param: null }; }
+  else if (e.target.matches("[data-gid] select")) { const c = p.actions[e.target.closest("[data-gid]").dataset.gid]; c.action = e.target.value; c.param = null; }
+  else return;
+  enregistrer(); renderProfils();
+});
+pdetail.addEventListener("click", async e => {
+  const p = R.profils[pSel], t = e.target.closest("button, .sw");
+  if (!t) return;
+  if (t.id === "pon") { p.actif = !p.actif; }
+  else if (t.id === "pdel") { R.profils.splice(pSel, 1); pSel = 0; }
+  else if (t.id === "addApp") { const c = await api.choisir_application(); if (!c) return; const exe = c.split(/[\\/]/).pop().toLowerCase(); if (!p.apps.includes(exe)) p.apps.push(exe); }
+  else if (t.id === "addTitre") {
+    t.outerHTML = `<input class="input" id="titreIn" placeholder="Ex. YouTube, puis Entrée" style="min-width:200px">`;
+    const inp = $("#titreIn"); inp.focus();
+    inp.onkeydown = ev => { if (ev.key === "Enter" && inp.value.trim()) { p.titres.push(inp.value.trim()); enregistrer(); renderProfils(); } if (ev.key === "Escape") renderProfils(); };
+    return;
+  }
+  else if (t.dataset.delApp !== undefined) p.apps.splice(+t.dataset.delApp, 1);
+  else if (t.dataset.delTitre !== undefined) p.titres.splice(+t.dataset.delTitre, 1);
+  else if (t.dataset.delG) delete p.actions[t.dataset.delG];
+  else return;
+  enregistrer(); renderProfils();
+});
+$("#newProfile").onclick = () => {
+  R.profils.push({ id: "p" + Date.now(), nom: "Nouveau profil", icone: "app-window", actif: true, defaut: false, apps: [], titres: [], actions: {} });
+  pSel = R.profils.length - 1; enregistrer(); renderProfils();
+  setTimeout(() => { const n = $("#pname"); n && (n.focus(), n.select()); }, 50);
+};
+
+/* Confort */
+function renderConfort() {
+  $$("input[data-c]").forEach(r => { r.value = Math.round(R.confort[r.dataset.c] * +r.dataset.k); afficherConfort(r.dataset.c); });
+  $$(".sw[data-confort]").forEach(sw => sw.classList.toggle("on", !!R.confort[sw.dataset.confort]));
+}
+function afficherConfort(c) {
+  const v = R.confort[c];
+  $(`[data-v="${c}"]`).textContent = c === "maintien" ? fmt(v) + " s" : c === "veille" ? v + " s" : Math.round(v * 100) + " %";
+}
+$$("input[data-c]").forEach(r => r.oninput = () => { R.confort[r.dataset.c] = +r.value / +r.dataset.k; afficherConfort(r.dataset.c); enregistrer(); });
+$$(".sw[data-confort]").forEach(sw => sw.onclick = () => { const k = sw.dataset.confort; R.confort[k] = !R.confort[k]; sw.classList.toggle("on"); enregistrer(); });
+
+/* ---------- état en direct ---------- */
+let dernierHisto = "", dernierProfil = "";
+async function sonder() {
+  let e;
+  try { e = await api.etat(); } catch { return; }
+  ETAT = e;
+  if (R.ecoute !== e.ecoute_voulue) { R.ecoute = e.ecoute_voulue; }
+  $("#master").classList.toggle("on", R.ecoute);
+  $("#masterT").textContent = R.ecoute ? "Écoute active" : "Écoute coupée";
+  $("#masterS").textContent = R.ecoute ? "La caméra suit ta main" : "La caméra est éteinte";
+
+  const pill = $("#statusPill");
+  pill.className = "pill" + (e.erreur ? " err" : e.camera ? " live" : "");
+  $("#statusTxt").textContent = e.erreur ? "Problème" : !R.ecoute ? "En pause" : e.demarrage ? "Démarrage…" : e.arme ? "Armé" : "À l'écoute";
+
+  let titre, sous, icone = "hand";
+  if (e.erreur) { titre = "Problème de caméra"; sous = e.erreur; icone = "camera-off"; }
+  else if (!R.ecoute) { titre = "Écoute coupée"; sous = `Réactive-la ici, depuis l'icône ${PRES_HORLOGE()} ou avec ${RACCOURCI()}.`; icone = "pause"; }
+  else if (e.demarrage) { titre = "Démarrage de la caméra…"; sous = "Quelques secondes."; icone = "loader"; }
+  else if (e.choix) { titre = "Choisis une fenêtre"; sous = "Pointe avec l'index, pince pour choisir. Poing pour annuler."; icone = "pointer"; }
+  else if (e.attrape) { titre = "Sélecteur de fenêtres"; sous = "Glisse pour choisir, rouvre la main pour valider."; icone = "grab"; }
+  else if (e.arme) { titre = "Gestes armés"; sous = `Profil ${e.profil}. Retour en veille après ${fmt(R.confort.veille)} s sans geste.`; }
+  else { titre = "En veille"; sous = "Montre ta main ouverte une seconde pour armer les gestes."; icone = "moon"; }
+  if ($("#heroT").textContent !== titre) {
+    $("#heroT").textContent = titre;
+    $("#heroTile").innerHTML = `<i data-lucide="${icone}"></i>`; icons();
+  }
+  $("#essaiPill").style.display = e.essai ? "" : "none";
+  if (e.essai && !e.erreur && R.ecoute) sous += " Mode essai : rien n'est envoyé au PC.";
+  $("#heroS").textContent = sous;
+  $("#heroTile").classList.toggle("live", !!e.arme);
+  $("#meter").style.width = Math.round(e.progression * 100) + "%";
+
+  // caméra
+  $("#camRec").style.display = e.camera ? "" : "none";
+  $("#ips").textContent = e.ips ? `Caméra · ${e.ips} i/s` : "Caméra";
+  const tag = $("#camTag");
+  if (e.points) {
+    const P = e.points.map(([x, y]) => [x * 160, y * 100]);
+    $("#skeleton").innerHTML =
+      `<g stroke="${e.arme ? "oklch(0.72 0.16 163)" : "oklch(0.74 0.008 265)"}" stroke-width=".9" stroke-linecap="round">${LIAISONS.map(([a, b]) => `<line x1="${P[a][0]}" y1="${P[a][1]}" x2="${P[b][0]}" y2="${P[b][1]}"/>`).join("")}</g>` +
+      `<g fill="white">${P.map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".9"/>`).join("")}</g>`;
+    tag.style.display = ""; tag.textContent = e.geste === "aucun" ? "Main détectée" : e.geste[0].toUpperCase() + e.geste.slice(1);
+    $("#camMsg").textContent = "";
+  } else {
+    $("#skeleton").innerHTML = ""; tag.style.display = "none";
+    $("#camMsg").textContent = !R.ecoute ? "Caméra coupée" : e.demarrage ? "Démarrage…" : e.camera ? "Montre ta main" : e.erreur ? "Caméra indisponible" : "";
+  }
+
+  // historique
+  const h = JSON.stringify(e.historique.map(x => [x.libelle, x.heure]));
+  if (h !== dernierHisto) {
+    dernierHisto = h;
+    $("#history").innerHTML = e.historique.length ? e.historique.slice(0, 4).map(x =>
+      `<div class="r"><div class="tile sm"><i data-lucide="${x.icone}"></i></div><div class="txt"><div class="t">${esc(x.libelle)}</div><div class="s">${esc(x.geste)}</div></div><span class="dim" style="font-variant-numeric:tabular-nums">${x.heure}</span></div>`).join("")
+      : '<div class="r"><span class="dim">Aucun geste pour l\'instant.</span></div>';
+    icons();
+  }
+  if (e.profil !== dernierProfil) { dernierProfil = e.profil; if ($("#profils").classList.contains("on") && !document.activeElement.matches("input")) renderProfils(); }
+}
+</script>
+</body>
+</html>

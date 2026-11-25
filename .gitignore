@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+.pytest_cache/
+modeles/
+journal/
+
+empaqueter/build/
+empaqueter/dist/
+empaqueter/sortie/
+site/telechargements/
+.claude/
+empaqueter/build.log
+empaqueter/*.log

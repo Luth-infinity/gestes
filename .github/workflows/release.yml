@@ -1,0 +1,115 @@
+# Release de Gestes : un tag vX.Y.Z construit l'installateur Windows et les .dmg macOS,
+# les joint à la release (préparée en brouillon), puis la publie quand tout est prêt
+# (pas de lien mort sur le site entre-temps).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  URL_MODELE: https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task
+
+jobs:
+  preparer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version du tag = version de l'app
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          grep -q "__version__ = \"$VERSION\"" gestes_webcam/__init__.py || { echo "::error::__version__ ne vaut pas $VERSION"; exit 1; }
+      - name: Release en brouillon (si elle n'existe pas déjà)
+        run: gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --notes ""
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  windows:
+    needs: preparer
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt pyinstaller
+      - name: Modèle de main
+        run: mkdir -p modeles && curl -sSfL "$URL_MODELE" -o modeles/hand_landmarker.task
+      - run: python empaqueter/icone.py
+      - run: python -m pytest -q
+      - run: python -m PyInstaller empaqueter/gestes.spec --noconfirm --distpath empaqueter/dist --workpath empaqueter/build
+      - name: L'app empaquetée démarre
+        shell: pwsh
+        run: |
+          $p = Start-Process empaqueter\dist\Gestes\Gestes.exe -ArgumentList '--verifier' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Gestes.exe --verifier : code $($p.ExitCode)" }
+      - name: Installateur
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue) -and -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+          $iscc = (Get-Command iscc -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          $version = "$env:GITHUB_REF_NAME".TrimStart('v')
+          & $iscc /Q "/DVersion=$version" empaqueter\installeur.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC : code $LASTEXITCODE" }
+      - name: Joindre à la release
+        run: gh release upload "$GITHUB_REF_NAME" empaqueter/sortie/Gestes-Setup-*.exe --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  macos:
+    needs: preparer
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest       # Apple Silicon
+            arch: arm64
+          - runner: macos-15-intel     # Intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    # Les Mac Intel sont en fin de vie : leur .dmg est un bonus, il ne bloque pas la release.
+    continue-on-error: ${{ matrix.arch == 'x64' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt pyinstaller
+      - name: Modèle de main
+        run: mkdir -p modeles && curl -sSfL "$URL_MODELE" -o modeles/hand_landmarker.task
+      - run: python empaqueter/icone.py
+      - run: python -m pytest -q
+      - run: python -m PyInstaller empaqueter/gestes.spec --noconfirm --distpath empaqueter/dist --workpath empaqueter/build
+      - name: L'app empaquetée démarre
+        run: empaqueter/dist/Gestes.app/Contents/MacOS/Gestes --verifier
+      - name: Signature ad hoc (pas de certificat Apple)
+        run: codesign --force --deep --sign - empaqueter/dist/Gestes.app
+      - name: Image disque
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p dmg && cp -R empaqueter/dist/Gestes.app dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname "Gestes" -srcfolder dmg -ov -format UDZO "Gestes-$VERSION-${{ matrix.arch }}.dmg"
+      - name: Joindre à la release
+        run: gh release upload "$GITHUB_REF_NAME" Gestes-*.dmg --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publier:
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sortir la release du brouillon
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
